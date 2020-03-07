@@ -53,7 +53,10 @@ from RepositoryBootstrap.SetupAndActivate.Configuration import *            # <U
 
 del sys.path[0]
 
-from _custom_data import CUSTOM_DATA
+# Ensure that we are loading custom data from this dir and not some other repository.
+sys.modules.pop("_custom_data", None)
+
+from _custom_data import _CUSTOM_DATA
 
 # ----------------------------------------------------------------------
 # There are two types of repositories: Standard and Mixin. Only one standard
@@ -123,7 +126,7 @@ def GetCustomActions(debug, verbose, explicit_configurations):
 
     actions = []
 
-    for name, version, path_parts in CUSTOM_DATA:
+    for name, version, path_parts in _CUSTOM_DATA:
         this_dir = os.path.join(*[_script_dir] + path_parts)
         assert os.path.isdir(this_dir), this_dir
 
