@@ -28,6 +28,7 @@ import sys
 from collections import OrderedDict
 
 import CommonEnvironment
+from CommonEnvironment import FileSystem
 
 # ----------------------------------------------------------------------
 _script_fullpath                            = CommonEnvironment.ThisFullpath()
@@ -51,6 +52,11 @@ from RepositoryBootstrap.SetupAndActivate import CurrentShell               # <U
 from RepositoryBootstrap.SetupAndActivate.Configuration import *            # <Unused import> pylint: disable = W0614
 
 del sys.path[0]
+
+# Ensure that we are loading custom data from this dir and not some other repository.
+sys.modules.pop("_custom_data", None)
+
+from _custom_data import _CUSTOM_DATA
 
 # ----------------------------------------------------------------------
 # There are two types of repositories: Standard and Mixin. Only one standard
@@ -118,4 +124,33 @@ def GetCustomActions(debug, verbose, explicit_configurations):
     cases, this is Bash on Linux systems and Batch or PowerShell on Windows systems.
     """
 
-    return []
+    actions = []
+
+    for name, version, path_parts in _CUSTOM_DATA:
+        this_dir = os.path.join(*[_script_dir] + path_parts)
+        assert os.path.isdir(this_dir), this_dir
+
+        install_filename = os.path.join(this_dir, "Install.7z")
+        assert os.path.isfile(install_filename), install_filename
+
+        # Install the file
+        actions += [
+            CurrentShell.Commands.Execute(
+                'python "{script}" Install "{name}" "{uri}" "{dir}" "/unique_id={version}" /unique_id_is_hash'.format(
+                    script=os.path.join(
+                        os.getenv("DEVELOPMENT_ENVIRONMENT_FUNDAMENTAL"),
+                        "RepositoryBootstrap",
+                        "SetupAndActivate",
+                        "AcquireBinaries.py",
+                    ),
+                    name=name,
+                    uri=FileSystem.FilenameToUri(
+                        install_filename,
+                    ).replace("%", "%%"),
+                    dir=this_dir,
+                    version=version,
+                ),
+            ),
+        ]
+
+    return actions
