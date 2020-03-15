@@ -42,6 +42,7 @@ _script_dir, _script_name                   = os.path.split(_script_fullpath)
 )
 def EntryPoint(
     working_dir=os.getcwd(),
+    preserve_package=False,
     output_stream=sys.stdout,
     verbose=False,
 ):
@@ -93,7 +94,12 @@ def EntryPoint(
                     )
 
         with CallOnExit(restore_file_func):
-            with CallOnExit(lambda: FileSystem.RemoveFile("package.json")):
+            if preserve_package:
+                remove_file_func = lambda: None
+            else:
+                remove_file_func = lambda: FileSystem.RemoveFile("package.json")
+
+            with CallOnExit(remove_file_func):
                 dm.stream.write("Running 'npm ci'...")
                 with dm.stream.DoneManager() as this_dm:
                     if verbose:
