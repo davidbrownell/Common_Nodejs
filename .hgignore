@@ -21,3 +21,6 @@ coverage.xml
 Tools/Nodejs/v12.16.1/BSD/*
 Tools/Nodejs/v12.16.1/Linux/*
 Tools/Nodejs/v12.16.1/Windows/*
+
+Templates/dist/*
+Templates/node_modules/*
