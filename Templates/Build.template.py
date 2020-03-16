@@ -50,21 +50,40 @@ StreamDecorator.InitAnsiSequenceStreams()
 )
 def Setup(
     output_stream=sys.stdout,
+    verbose=False,
 ):
     with StreamDecorator(output_stream).DoneManager(
         line_prefix="",
         prefix="\nResults: ",
         suffix="\n",
     ) as dm:
+        npm_install_command_line = "{}{}".format(
+            CurrentShell.CreateScriptName("NpmInstall"),
+            " /verbose" if verbose else "",
+        )
+
         dm.stream.write("Running 'NpmInstall'...")
         with dm.stream.DoneManager() as this_dm:
             prev_dir = os.getcwd()
             os.chdir(_script_dir)
 
             with CallOnExit(lambda: os.chdir(prev_dir)):
-                this_dm.result = Process.Execute(CurrentShell.CreateScriptName("NpmInstall"), this_dm.stream)
+                this_dm.result = Process.Execute(npm_install_command_line, this_dm.stream)
                 if this_dm.result != 0:
                     return this_dm.result
+
+        if os.path.isfile(os.path.join(_script_dir, "src", "package-lock.json")):
+            dm.stream.write("Running 'NpmInstall' in 'src'...")
+            with dm.stream.DoneManager(
+                suffix="\n",
+            ) as this_dm:
+                prev_dir = os.getcwd()
+                os.chdir(os.path.join(_script_dir, "src"))
+
+                with CallOnExit(lambda: os.chdir(prev_dir)):
+                    this_dm.result = Process.Execute(npm_install_command_line, this_dm.stream)
+                    if this_dm.result != 0:
+                        return this_dm.result
 
         # Look for the bin dir in the path and prompt if it does not exist
         path_dir = os.path.join(_script_dir, "node_modules", ".bin")
