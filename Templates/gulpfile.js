@@ -169,11 +169,29 @@ gulp.task(
 );
 
 gulp.task(
+    "node_modules",
+    () => {
+        return gulp.src(
+            [ src_folder + "node_modules/*/dist/**/*.*" ],
+            {
+                base: src_folder,
+                since: gulp.lastRun("node_modules")
+            }
+        )
+        .pipe(rename((file) => RemovePathPrefix(file, "node_modules")))
+        .pipe(gulp.dest(dist_folder + "node_modules"))
+        .pipe(browserSync.stream())
+        ;
+    }
+);
+
+gulp.task(
     "build",
     gulp.parallel(
         "html",
         "images",
         "less",
+        "node_modules",
         "sass",
         "typescript"
     )
