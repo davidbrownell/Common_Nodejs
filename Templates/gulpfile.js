@@ -18,15 +18,17 @@
 // which is licensed under the MIT license and available at
 // https://github.com/jr-cologne/gulp-starter-kit.
 
-const browserSync                           = require("browser-sync").create(),
+const browserify                            = require("browserify"),
+      browserSync                           = require("browser-sync").create(),
       del                                   = require("del"),
+      glob                                  = require("glob"),
       gulp                                  = require("gulp"),
       path                                  = require("path"),
+      through                               = require("through2"),
       yargs                                 = require("yargs"),
 
       autoprefixer                          = require("gulp-autoprefixer"),
       dependents                            = require("gulp-dependents"),
-      concat                                = require("gulp-concat"),
       cond                                  = require("gulp-cond"),
       imagemin                              = require("gulp-imagemin"),
       less                                  = require("gulp-less"),
@@ -38,10 +40,14 @@ const browserSync                           = require("browser-sync").create(),
       typescript                            = require("gulp-typescript"),
       uglify                                = require("gulp-uglify"),
 
+      buffer                                = require("vinyl-buffer"),
+      source                                = require("vinyl-source-stream"),
+
       server_port                           = 3000,
 
       src_folder                            = "./src/",
-      dist_folder                           = "./dist/"
+      dist_folder                           = "./dist/",
+      temp_folder                           = "./temp/"
       ;
 
 if (yargs.argv.release)
@@ -60,16 +66,18 @@ function RemovePathPrefix(file, prefix) {
     }
 }
 
-gulp.task("clean", () => del([dist_folder]));
+gulp.task("clean", () => del([dist_folder, temp_folder]));
 
 gulp.task(
     "html",
     () => {
         return gulp.src(
-            [ src_folder + "**/*.html" ],
+            [
+                `${src_folder}**/*.html`,
+                `!${src_folder}node_modules/**/*.*`
+            ],
             {
-                base: src_folder,
-                since: gulp.lastRun("html")
+                base: src_folder
             }
         )
         .pipe(gulp.dest(dist_folder))
@@ -82,10 +90,12 @@ gulp.task(
     "less",
     () => {
         return gulp.src(
-            [ src_folder + "**/!(_)*.less" ],
+            [
+                `${src_folder}**/!(_)*.less`,
+                `!${src_folder}node_modules/**/*.*`
+            ],
             {
-                base: src_folder,
-                since: gulp.lastRun("less"),
+                base: src_folder
             }
         )
         .pipe(sourcemaps.init())
@@ -96,7 +106,7 @@ gulp.task(
           .pipe(minifyCss())
         .pipe(cond(!RELEASE, sourcemaps.write(".")))
         .pipe(rename((file) => RemovePathPrefix(file, "less")))
-        .pipe(gulp.dest(dist_folder + "css"))
+        .pipe(gulp.dest(`${dist_folder}css`))
         .pipe(browserSync.stream())
         ;
     }
@@ -106,10 +116,13 @@ gulp.task(
     "sass",
     () => {
         return gulp.src(
-            [ src_folder + "**/*.sass", src_folder + "**/*.scss" ],
+            [
+                `${src_folder}**/*.sass`,
+                `${src_folder}**/*.scss`,
+                `!${src_folder}node_modules/**/*.*`
+            ],
             {
-                base: src_folder,
-                since: gulp.lastRun("sass")
+                base: src_folder
             }
         )
         .pipe(sourcemaps.init())
@@ -120,7 +133,7 @@ gulp.task(
           .pipe(minifyCss())
         .pipe(cond(!RELEASE, sourcemaps.write(".")))
         .pipe(rename((file) => RemovePathPrefix(file, "sass")))
-        .pipe(gulp.dest(dist_folder + "css"))
+        .pipe(gulp.dest(`${dist_folder}css`))
         .pipe(browserSync.stream())
         ;
     }
@@ -130,16 +143,18 @@ gulp.task(
     "images",
     () => {
         return gulp.src(
-            [ src_folder + "**/*.{png,jpg,jpeg,gif,svg,ico}" ],
+            [
+                `${src_folder}**/*.{png,jpg,jpeg,gif,svg,ico}`,
+                `!${src_folder}node_modules/**/*.*`
+            ],
             {
-                base: src_folder,
-                since: gulp.lastRun("images")
+                base: src_folder
             }
         )
         .pipe(plumber())
         .pipe(imagemin())
         .pipe(rename((file) => RemovePathPrefix(file, "images")))
-        .pipe(gulp.dest(dist_folder + "images"))
+        .pipe(gulp.dest(`${dist_folder}images`))
         .pipe(browserSync.stream())
         ;
     }
@@ -149,37 +164,77 @@ gulp.task(
     "typescript",
     () => {
         return gulp.src(
-            [ src_folder + "**/!(_)*.{ts,tsx}" ],
+            [
+                `${src_folder}**/!(_)*.{ts,tsx}`,
+                `!${src_folder}node_modules/**/*.*`
+            ],
             {
-                base: src_folder,
-                since: gulp.lastRun("typescript")
+                base: src_folder
             }
         )
         .pipe(sourcemaps.init())
           .pipe(plumber())
-          .pipe(typescript("tsconfig.json"))
-          .pipe(concat("all.js"))
-          .pipe(cond(RELEASE, uglify()))
+          .pipe(typescript("src/tsconfig.json"))
         .pipe(cond(!RELEASE, sourcemaps.write(".")))
         .pipe(rename((file) => RemovePathPrefix(file, "typescript")))
-        .pipe(gulp.dest(dist_folder + "js"))
-        .pipe(browserSync.stream())
+        .pipe(gulp.dest(`${temp_folder}js`))
         ;
     }
 );
 
 gulp.task(
-    "node_modules",
+    "javascript",
     () => {
         return gulp.src(
-            [ src_folder + "node_modules/*/dist/**/*.*" ],
+            [
+                `${src_folder}js/!(_)*.{js,jsx}`,
+                `!${src_folder}node_modules/**/*.*`
+            ],
             {
-                base: src_folder,
-                since: gulp.lastRun("node_modules")
+                base: src_folder
             }
         )
-        .pipe(rename((file) => RemovePathPrefix(file, "node_modules")))
-        .pipe(gulp.dest(dist_folder + "node_modules"))
+        .pipe(gulp.dest(`${temp_folder}js`))
+        ;
+    }
+);
+
+gulp.task(
+    "browserify",
+    () => {
+        var bundledStream = through();
+
+        bundledStream
+            .pipe(source("app.js"))
+            .pipe(buffer())
+            .pipe(cond(RELEASE, uglify()))
+            .pipe(gulp.dest(`${dist_folder}js`))
+            .pipe(browserSync.stream())
+            ;
+
+        var b = browserify(
+            {
+                entries: glob.sync(`${temp_folder}js/**/*.{js,jsx}`),
+                debug: !RELEASE,
+                paths: [
+                    "./src/node_modules"
+                ],
+                standalone: "app"
+            });
+
+        b.bundle().pipe(bundledStream);
+
+        return bundledStream;
+    }
+);
+
+gulp.task(
+    "content.json",
+    () => {
+        return gulp.src(
+            [ `${src_folder}content.json` ]
+        )
+        .pipe(gulp.dest(() => dist_folder))
         .pipe(browserSync.stream())
         ;
     }
@@ -188,12 +243,20 @@ gulp.task(
 gulp.task(
     "build",
     gulp.parallel(
+        gulp.series(
+            gulp.parallel(
+                "javascript",
+                "typescript"
+            ),
+            "browserify",
+            () => del([temp_folder])
+        ),
         "html",
         "images",
         "less",
-        "node_modules",
         "sass",
-        "typescript"
+
+        "content.json"
     )
 );
 
@@ -223,7 +286,10 @@ gulp.task(
     "watch",
     () => {
         gulp.watch(
-            [ src_folder + "**/*.*" ],
+            [
+                `${src_folder}**/*.*`,
+                `!${src_folder}node_modules/**/*.*`
+            ],
             {
                 events: "all"
             },

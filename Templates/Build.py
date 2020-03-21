@@ -39,7 +39,7 @@ PROJECT_NAME                                = "<Project Name>"
 
 raise Exception("Remove this exception once the configuration settings above have been updated for your project")
 
-CONFIGURATIONS                              = ["debug", "release"]
+CONFIGURATIONS                              = ["Debug", "Release"]
 
 StreamDecorator.InitAnsiSequenceStreams()
 
@@ -63,7 +63,9 @@ def Setup(
         )
 
         dm.stream.write("Running 'NpmInstall'...")
-        with dm.stream.DoneManager() as this_dm:
+        with dm.stream.DoneManager(
+            suffix="\n",
+        ) as this_dm:
             prev_dir = os.getcwd()
             os.chdir(_script_dir)
 
@@ -153,7 +155,7 @@ def Build(
         suffix="\n",
     ) as dm:
         command_line = "gulp build{}".format(
-            " --release" if configuration == "release" else "",
+            " --release" if configuration == "Release" else "",
         )
 
         dm.stream.write("Building via '{}'...".format(command_line))
