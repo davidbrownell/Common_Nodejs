@@ -99,11 +99,11 @@ gulp.task(
             }
         )
         .pipe(sourcemaps.init())
-          .pipe(plumber())
-          .pipe(dependents())
-          .pipe(less())
-          .pipe(autoprefixer())
-          .pipe(minifyCss())
+            .pipe(plumber())
+            .pipe(dependents())
+            .pipe(less())
+            .pipe(autoprefixer())
+            .pipe(minifyCss())
         .pipe(cond(!RELEASE, sourcemaps.write(".")))
         .pipe(rename((file) => RemovePathPrefix(file, "less")))
         .pipe(gulp.dest(`${dist_folder}css`))
@@ -126,11 +126,11 @@ gulp.task(
             }
         )
         .pipe(sourcemaps.init())
-          .pipe(plumber())
-          .pipe(dependents())
-          .pipe(sass())
-          .pipe(autoprefixer())
-          .pipe(minifyCss())
+            .pipe(plumber())
+            .pipe(dependents())
+            .pipe(sass())
+            .pipe(autoprefixer())
+            .pipe(minifyCss())
         .pipe(cond(!RELEASE, sourcemaps.write(".")))
         .pipe(rename((file) => RemovePathPrefix(file, "sass")))
         .pipe(gulp.dest(`${dist_folder}css`))
@@ -173,8 +173,8 @@ gulp.task(
             }
         )
         .pipe(sourcemaps.init())
-          .pipe(plumber())
-          .pipe(typescript("src/tsconfig.json"))
+            .pipe(plumber())
+            .pipe(typescript("src/tsconfig.json"))
         .pipe(cond(!RELEASE, sourcemaps.write(".")))
         .pipe(rename((file) => RemovePathPrefix(file, "typescript")))
         .pipe(gulp.dest(`${temp_folder}js`))
@@ -229,18 +229,6 @@ gulp.task(
 );
 
 gulp.task(
-    "content.json",
-    () => {
-        return gulp.src(
-            [ `${src_folder}content.json` ]
-        )
-        .pipe(gulp.dest(() => dist_folder))
-        .pipe(browserSync.stream())
-        ;
-    }
-);
-
-gulp.task(
     "build",
     gulp.parallel(
         gulp.series(
@@ -254,9 +242,7 @@ gulp.task(
         "html",
         "images",
         "less",
-        "sass",
-
-        "content.json"
+        "sass"
     )
 );
 
