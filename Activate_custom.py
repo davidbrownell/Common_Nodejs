@@ -16,9 +16,12 @@
 
 import os
 import sys
+import textwrap
 
 sys.path.insert(0, os.getenv("DEVELOPMENT_ENVIRONMENT_FUNDAMENTAL"))
 from RepositoryBootstrap.SetupAndActivate import CommonEnvironment, CurrentShell
+
+from RepositoryBootstrap.Impl import CommonEnvironmentImports
 
 del sys.path[0]
 
@@ -69,25 +72,76 @@ def GetCustomActions(
         )
     else:
         # Verify installations
-            for name, version, path_parts in _CUSTOM_DATA:
-                this_dir = os.path.join(*([_script_dir] + path_parts))
-                assert os.path.isdir(this_dir), this_dir
+        for name, version, path_parts in _CUSTOM_DATA:
+            this_dir = os.path.join(*([_script_dir] + path_parts))
+            assert os.path.isdir(this_dir), this_dir
 
-                actions += [
-                    CurrentShell.Commands.Execute(
-                        'python "{script}" Verify "{name}" "{dir}" "{version}"'.format(
-                            script=os.path.join(
-                                os.getenv("DEVELOPMENT_ENVIRONMENT_FUNDAMENTAL"),
-                                "RepositoryBootstrap",
-                                "SetupAndActivate",
-                                "AcquireBinaries.py",
-                            ),
-                            name=name,
-                            dir=this_dir,
-                            version=version,
+            actions += [
+                CurrentShell.Commands.Execute(
+                    'python "{script}" Verify "{name}" "{dir}" "{version}"'.format(
+                        script=os.path.join(
+                            os.getenv("DEVELOPMENT_ENVIRONMENT_FUNDAMENTAL"),
+                            "RepositoryBootstrap",
+                            "SetupAndActivate",
+                            "AcquireBinaries.py",
                         ),
+                        name=name,
+                        dir=this_dir,
+                        version=version,
                     ),
-                ]
+                ),
+            ]
+
+        if CommonEnvironmentImports.CurrentShell.CategoryName == "Windows":
+            app_data = os.getenv("APPDATA")
+            if " " in app_data and not os.path.isfile(os.path.join(_script_dir, "admin_setup.complete")):
+                index_with_space = None
+
+                path_parts = app_data.split(os.path.sep)
+                for path_part_index, path_part in enumerate(path_parts):
+                    if " " in path_part:
+                        # We only expect one component with spaces
+                        assert index_with_space is None, app_data
+                        index_with_space = path_part_index
+
+                actions.append(
+                    CommonEnvironmentImports.CurrentShell.Commands.Message(
+                        "\n".join(
+                            [
+                                "        {}".format(line) for line in textwrap.dedent(
+                                    """\
+
+                                    # ----------------------------------------------------------------------
+                                    # ----------------------------------------------------------------------
+
+                                    WARNING:
+
+                                    The environment variable 'APPDATA' contains spaces ('{app_data}'),
+                                    which causes problems for npx on Windows.
+
+                                    To apply a workaround for this problem:
+
+                                        1) Launch a command prompt with administrator rights:
+                                            - Windows Key
+                                            - Type "cmd"
+                                            - Right click and select "Run as Administrator"
+
+                                        2) Run '{script} "{current_path}" {new_path}'
+
+                                    # ----------------------------------------------------------------------
+                                    # ----------------------------------------------------------------------
+
+                                    """,
+                                ).format(
+                                    app_data=app_data,
+                                    script=os.path.join(_script_dir, "admin_setup.cmd"),
+                                    current_path=os.path.sep.join(path_parts[:index_with_space + 1]),
+                                    new_path=os.path.join(os.path.sep.join(path_parts[:index_with_space]), path_parts[index_with_space].replace(" ", "")),
+                                ).split("\n")
+                            ],
+                        ),
+                    )
+                )
 
     return actions
 
