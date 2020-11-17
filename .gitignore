@@ -21,6 +21,6 @@ Tools/Nodejs/v12.16.1/Linux/*
 Tools/Nodejs/v12.16.1/Windows/*
 
 Templates/dist/*
-Templates/node_modules/*
+*/node_modules/*
 
 admin_setup.complete
